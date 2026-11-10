@@ -1,0 +1,108 @@
+*goda_fi_ui_filer.txt*	The UI filer of goda-fi.vim
+
+License: MIT license
+
+==============================================================================
+INSTALL                                             *goda-fi-ui-filer-install*
+
+The UI "filer" of goda-fi.vim (|goda_fi.txt|). It needs goda-fi.vim and
+goda-fi-ui-ff.vim (|goda-fi-ui-ff|), whose UI it is made of: install both
+(with goda-pm.vim, `depends = 'goda-fi-ui-ff.vim'`).
+
+https://github.com/Shougo/goda-fi.vim
+https://github.com/Shougo/goda-fi-ui-ff.vim
+
+Add it in the configuration of goda-fi.vim (|goda-fi-install|):
+>go
+	import "github.com/Shougo/goda-fi-ui-filer.vim/ui/filer"
+
+	b.AddUI(filer.New())
+<
+==============================================================================
+UI FILER                                                    *goda-fi-ui-filer*
+
+ui/filer, as ddu-ui-filer: the items of trees in a buffer
+("goda-fi-filer-{name}", filetype "goda-fi-filer"), the path of each
+source on the line before its items. It is a UI made of ff (ff.NewUI):
+its params and actions are those of ff (|goda-fi-ui-ff-params|,
+|goda-fi-ui-ff-actions|) with other defaults, and these.
+
+PARAMS                                               *goda-fi-ui-filer-params*
+
+splitDirection		"aboveleft".
+
+displayRoot		v:true: a line of the path of each source,
+			"{source}:{path}" ("~" for the home directory), before
+			its items. It is the root item of the source
+			(__level -1): actions work on it (narrow).
+			highlights "sourceName" (Type), "sourcePath" (String).
+
+sort			"filename", "natural" (numbers by their value),
+			"extension", "size", "time" or "none" (default);
+			upper case reverses it. The items of a tree are
+			sorted among them.
+
+sortTreesFirst		The trees (directories) before the other items.
+
+fileFilter		A regexp (Go's): the items that are not trees must
+			match it.
+
+The actions cursorTreeTop and cursorTreeBottom move the cursor to the first
+and the last item of the tree it is in (in ff too).
+
+The filer sets b:goda_fi_ui_filer_path (its buffer) and
+t:goda_fi_ui_filer_path (its tab page) to the path of its first source, as
+ddu-ui-filer's b:ddu_ui_filer_path and t:ddu_ui_filer_path:
+>vim
+	nnoremap <Space>f <Cmd>call goda_fi#start(#{
+	      \   name: 'filer-' .. win_getid(), ui: 'filer', resume: v:true,
+	      \   sources: [#{ name: 'file', options: #{
+	      \     path: t:->get('goda_fi_ui_filer_path', getcwd()),
+	      \     limitPath: getcwd(),
+	      \     columns: ['filename'],
+	      \   } }],
+	      \ })<CR>
+	autocmd TabEnter,WinEnter,CursorHold,FocusGained *
+	      \ call goda_fi#ui#do_action('checkItems')
+<
+
+A configuration, with the column filename (the columns of goda-fi-ext):
+>go
+	b.AddUI(filer.New())
+	b.AddColumn(filename.New(filename.DefaultParams()))
+	b.PatchLocal("filer", fi.Options{
+		UI:      "filer",
+		Sources: fi.Sources("file"),
+		SourceOptions: map[string]fi.SourceOptions{
+			"file": {Columns: []string{"filename"}},
+		},
+		UIParams: map[string]fi.Params{
+			"filer": {"sort": "filename", "sortTreesFirst": true},
+		},
+		// narrow keeps the window (as ddu-ui-filer's example).
+		ActionOptions: map[string]fi.ActionOptions{
+			"narrow": {Quit: new(false)},
+		},
+	})
+<
+>vim
+	autocmd FileType goda-fi-filer call s:filer()
+	function! s:filer() abort
+	  nnoremap <buffer> <CR>
+	        \ <Cmd>call goda_fi#ui#do_action('itemAction',
+	        \ #{ name: goda_fi#ui#get_item()->get('isTree')
+	        \   ? 'narrow' : 'open' })<CR>
+	  nnoremap <buffer> <Tab>
+	        \ <Cmd>call goda_fi#ui#do_action(
+	        \   'expandItem', #{ mode: 'toggle' })<CR>
+	  nnoremap <buffer> ..
+	        \ <Cmd>call goda_fi#ui#do_action('itemAction',
+	        \ #{ name: 'narrow', params: #{ path: '..' } })<CR>
+	  nnoremap <buffer> q
+	        \ <Cmd>call goda_fi#ui#do_action('quit')<CR>
+	endfunction
+	call goda_fi#start(#{ name: 'filer' })
+<
+
+==============================================================================
+vim:tw=78:ts=8:noet:ft=help:norl:
